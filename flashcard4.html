@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phonics Flashcards</title>
+    <style>
+        /* Basic page styling */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f0f4f8;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            color: #333;
+        }
+
+        /* Main app container */
+        #app-container {
+            width: 90%;
+            max-width: 500px;
+            text-align: center;
+        }
+
+        /* Container for the card and speak button */
+        .card-container {
+            width: 100%;
+            height: 300px;
+            position: relative; /* Allows absolute positioning for the button */
+            margin-bottom: 20px;
+            perspective: 1000px; /* For 3D flip effect */
+        }
+
+        /* The card itself (no more flipping) */
+        .card {
+            width: 100%;
+            height: 100%;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 2.5rem;
+            font-weight: bold;
+            padding: 20px;
+            box-sizing: border-box; /* Ensures padding doesn't break layout */
+            line-height: 1.3;
+
+            /* Flip styles */
+            position: absolute;
+            backface-visibility: hidden;
+            transition: transform 0.6s;
+            -webkit-backface-visibility: hidden; /* Safari */
+            -webkit-transition: -webkit-transform 0.6s; /* Safari */
+        }
+
+        /* Flipped state */
+        .card-container.flipped .card-front {
+            transform: rotateY(180deg);
+            -webkit-transform: rotateY(180deg); /* Safari */
+        }
+
+        .card-container.flipped .card-back {
+            transform: rotateY(0deg);
+            -webkit-transform: rotateY(0deg); /* Safari */
+        }
+
+
+        .card-front {
+            background-color: #155230; /* Green */
+            color: #f5f7fa;
+            transform: rotateY(0deg); /* Start facing front */
+            -webkit-transform: rotateY(0deg);
+        }
+
+        .card-back {
+            background-color: #f5f7fa; /* Light background for image */
+            color: #333; /* Dark text for image caption if needed */
+            transform: rotateY(180deg); /* Start hidden */
+            -webkit-transform: rotateY(180deg); /* Safari */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 10px;
+            font-size: 1rem; /* Smaller text for loading/error messages */
+        }
+
+        .card-back img {
+            max-width: 95%;
+            max-height: 95%;
+            object-fit: contain;
+            border-radius: 8px;
+        }
+
+
+        /* New Pronunciation Button */
+        #pronounce-btn {
+            position: absolute;
+            bottom: 15px;
+            right: 15px;
+            background-color: #e8a917;
+            color: white;
+            border: none;
+            border-radius: 50%; /* Makes it a circle */
+            width: 50px;
+            height: 50px;
+            font-size: 1.5rem;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            transition: background-color 0.2s;
+            z-index: 10; /* Ensure button is above card content */
+        }
+
+        #pronounce-btn:hover {
+            background-color: #0056b3;
+        }
+
+        /* NEW: Image Button */
+        #image-btn {
+            position: absolute;
+            bottom: 15px;
+            left: 15px; /* Positioned at bottom-left */
+            background-color: #3498db; /* Blue color */
+            color: white;
+            border: none;
+            border-radius: 50%; /* Makes it a circle */
+            width: 50px;
+            height: 50px;
+            font-size: 1.5rem;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            transition: background-color 0.2s;
+            z-index: 10; /* Ensure button is above card content */
+        }
+
+        #image-btn:hover {
+            background-color: #2980b9;
+        }
+        
+        /* Navigation buttons */
+        .nav-buttons {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+        }
+
+        .nav-buttons button {
+            font-size: 1rem;
+            font-weight: 600;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            background-color: #e5e5e5;
+            color: #333;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .nav-buttons button:hover {
+            background-color: #d1d1d1;
+        }
+
+        /* Word counter */
+        #word-counter {
+            font-size: 1rem;
+            color: #555;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="app-container">
+        <div class="card-container" id="card-flipper"> 
+            <div class="card card-front" id="word-display">
+                </div>
+            <div class="card card-back" id="image-display">
+                </div>
+            <button id="pronounce-btn">🔊</button>
+            <button id="image-btn">🖼️</button> 
+        </div>
+
+        <div class="nav-buttons">
+            <button id="prev-btn">Previous</button>
+            <button id="shuffle-btn">Shuffle</button>
+            <button id="next-btn">Next</button>
+        </div>
+
+        <div id="word-counter">
+            Word 1 / 1
+        </div>
+    </div>
+
+    <script>
+    // --- 1. Your Word List ---
+    const rawWordData = `
+        Orange Hot Dog Swan Wash Want
+        Pan Bag Map Wed Leg Bed Bread
+        Head Dead Ink Kid Sit Gymnast
+        Gym Rhythm Pretty Effective Electric
+        Umbrella Cup Hut Touch Tough Rough
+        Cook Book Look Full Bull Pull
+        Banana Panda Gorilla Tiger Teacher Worker
+        Car Card Farm Fork Lord Born
+        Draw Yawn Lawn Sauce Audio Author
+        Oar Roar Soar Fear Dear Hear
+        cheer Beer Dear Hurt Nurse Purse
+        Fern Mercy Person Girl Shirt Skirt
+        Word Work Worm Heard Learn Search
+        Chair Hair Pair Square Scare Spare
+        Pear Bear Wear Sleep Deep Jeep
+        Meat Meal Team Equal He We
+        Field Piece Niece Receive Seize Ceiling
+        Rail Tail Pain May Play Stay
+        Cake Take Date They Prey Grey
+        Steak Break Great Veil Rein Vein
+        Eight Neighbour Weight Light Flight Fright
+        Pie Tie Die Cry Sky Fly
+        Wine Nine Line Iron Find Mind
+        Coin Join Soil Boy Toy Joy
+        Coat Boat Foam Snow Slow Blow
+        Volcano Cold Gold Smoke Home Coke
+        Uniform Unit Unique Tuesday Argue Value
+        Stew Few New Cube Tube Cute
+        Cow Town Down House Mouse Couch
+        Food Room Tool Screw Flaw Crew
+        Glue Blue Clue Flue Include Pollute
+        Blouse Black Blink Clean Clock Clear
+        Flower Flag Flat Globe Glass Glove
+        Planet Plane Plant Slave Sleep Sled
+        Bridge Bread Brick Crop Crash Crack
+        Drum Drink Drive Fruit Frog Fresh
+        Group Grass Grab Trap Truck Trip
+        Skip Skill Spring Spot Speak Stone
+        Step Stop Rabbit Bubble Rubber Ladder
+        Cuddle Puddle Pulled Cleaned Failed
+        Muffin Coffee Suffer Phone Photo Phrase
+        Cough Laugh Guard Guide Guess Egg
+        Giggle Wiggle Whole Whom Whose
+        Giraffe Gentle Giant Cage Large Page
+        Hedge Bridge Fridge Clock Chick Chemist
+        Stomach Monarch Bell Tell Bill
+        Hammer Summer Grammar Thumb Autumn Hymn
+        Tunnel Dimmer Funny Knight Knock Knot
+        Gnome Gnaw Gnat Apple Happy Supper
+        Queen Quack Quick Squirrel Borrow Narrow
+        Write Wrap Wrist Glove Have Live
+        Dress Glass Class City Circle Circus
+        Rice Face Nice Horse House Mouse
+        Scientist Science Scent Listen Hasten Fasten
+        Button Letter Butter Jumped Washed Watched
+        Whistle Shop Sheep Short Station Action
+        Nation Discussion Mission Passion Facial
+        Precious Delicious Puzzle Jazz Buzz
+        Breeze Freeze Sneeze Cheese Rose Nose
+        Scissors Dessert Possess Chalk Cheat
+        Charge Ring King Sing Sink Drink
+        Think Mouth Bath Math Feather Father Mother
+    `;
+
+    let words = rawWordData.trim().split(/\s+/).filter(Boolean);
+    let currentWordIndex = 0;
+    
+    // --- 2. Get HTML Elements ---
+    const cardFlipper = document.getElementById('card-flipper');
+    const wordDisplay = document.getElementById('word-display');
+    const imageDisplay = document.getElementById('image-display');
+    const counterDisplay = document.getElementById('word-counter');
+    const nextButton = document.getElementById('next-btn');
+    const prevButton = document.getElementById('prev-btn');
+    const pronounceButton = document.getElementById('pronounce-btn');
+    const shuffleButton = document.getElementById('shuffle-btn');
+    const imageButton = document.getElementById('image-btn');
+
+    // --- 3. Define Functions ---
+
+    /** Updates the text on the card and the counter */
+    function updateCard(resetFlip = true) {
+        if (resetFlip) {
+            cardFlipper.classList.remove('flipped');
+            imageDisplay.innerHTML = ''; 
+        }
+        wordDisplay.textContent = words[currentWordIndex];
+        counterDisplay.textContent = `Word ${currentWordIndex + 1} / ${words.length}`;
+    }
+
+    /** Moves to the next word */
+    function showNextWord() {
+        currentWordIndex++;
+        if (currentWordIndex >= words.length) {
+            currentWordIndex = 0; // Loop to start
+        }
+        updateCard(true); // Reset flip state for new word
+    }
+
+    /** Moves to the previous word */
+    function showPrevWord() {
+        currentWordIndex--;
+        if (currentWordIndex < 0) {
+            currentWordIndex = words.length - 1; // Loop to end
+        }
+        updateCard(true); // Reset flip state for new word
+    }
+
+    /** Uses the Web Speech API to pronounce the current word */
+    function speakWord() {
+        window.speechSynthesis.cancel();
+        
+        if ('speechSynthesis' in window && !cardFlipper.classList.contains('flipped')) {
+            const wordToSpeak = words[currentWordIndex];
+            const utterance = new SpeechSynthesisUtterance(wordToSpeak);
+            utterance.rate = 0.8;
+            utterance.lang = 'en-GB';
+            window.speechSynthesis.speak(utterance);
+        } else if (!('speechSynthesis' in window)) {
+            alert("Sorry, your browser does not support text-to-speech.");
+        }
+    }
+
+    /** Shuffles the words array in place (Fisher-Yates algorithm) */
+    function shuffleWords() {
+        for (let i = words.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [words[i], words[j]] = [words[j], words[i]]; // Swap elements
+        }
+        currentWordIndex = 0;
+        updateCard(true); // Reset flip state for new word
+    }
+
+    // --- (!!!) MODIFIED: IMAGE FUNCTION WITH BACKUP (!!!) ---
+    /** Fetches a real image and displays it, with a backup service */
+    function showImageForWord() {
+        const word = words[currentWordIndex].toLowerCase();
+        
+        // Only fetch a new image if the card is currently showing the word
+        if (!cardFlipper.classList.contains('flipped')) {
+            // 1. Define our image services
+            const primaryUrl = `https://source.unsplash.com/300x300/?${word}`;
+            const backupUrl = `https://loremflickr.com/300/300/${word}`; // Backup service
+
+            // 2. Show loading message
+            imageDisplay.innerHTML = `<p style="font-size: 1rem; color: #555;">Loading image for "${word}"...</p>`;
+            
+            // 3. Create the image element
+            const imgElement = new Image();
+            imgElement.alt = `Image of ${word}`;
+            
+            // 4. Define error handlers
+            
+            // This runs if the BACKUP (loremflickr) also fails
+            const finalErrorHandler = () => {
+                imageDisplay.innerHTML = `<p style="font-size: 1rem; color: #d9534f;">Sorry, no image found for "${word}".</p>`;
+            };
+
+            // This runs if the PRIMARY (unsplash) fails
+            const primaryErrorHandler = () => {
+                // Unsplash failed, so let's try the backup
+                imgElement.src = backupUrl; // Try loading from loremflickr
+                
+                // Re-assign the error handler to the final one
+                imgElement.onerror = finalErrorHandler; 
+            };
+            
+            // 5. Define success handler (works for either service)
+            imgElement.onload = () => {
+                imageDisplay.innerHTML = '';
+                imageDisplay.appendChild(imgElement);
+            };
+
+            // --- 6. START THE PROCESS ---
+            imgElement.onerror = primaryErrorHandler; // Set the first error handler
+            imgElement.src = primaryUrl; // Try loading the first image
+        }
+        
+        // 7. Flip the card
+        cardFlipper.classList.toggle('flipped');
+    }
+
+    /** Handles keyboard controls */
+    function handleKeyDown(event) {
+        switch (event.key) {
+            case 'ArrowRight':
+                showNextWord();
+                break;
+            case 'ArrowLeft':
+                showPrevWord();
+                break;
+            case ' ': // Spacebar
+                event.preventDefault(); // Prevents page from scrolling down
+                speakWord();
+                break;
+            case 'i': // 'i' for image
+            case 'I':
+                showImageForWord();
+                break;
+        }
+    }
+
+    // --- 4. Add Event Listeners ---
+    nextButton.addEventListener('click', showNextWord);
+    prevButton.addEventListener('click', showPrevWord);
+    pronounceButton.addEventListener('click', speakWord);
+    shuffleButton.addEventListener('click', shuffleWords);
+    imageButton.addEventListener('click', showImageForWord); // MODIFIED
+    document.addEventListener('keydown', handleKeyDown);
+
+    // --- 5. Initial Setup ---
+    updateCard(true);
+    </script>
+</body>
+</html>
